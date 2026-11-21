@@ -47,6 +47,14 @@ Root: HKCU; Subkey: "Software\AkkuMonitor"; Flags: uninsdeletekey dontcreatekey
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Akku-Monitor jetzt starten"; Flags: nowait postinstall skipifsilent
+; Nach einem stillen Update aus der App heraus: App wieder starten
+Filename: "{app}\{#AppExe}"; Flags: nowait runasoriginaluser; Check: IsAkkuUpdate
 
 [UninstallRun]
 Filename: "{app}\{#AppExe}"; Parameters: "--quit"; Flags: runhidden; RunOnceId: "StopApp"
+
+[Code]
+function IsAkkuUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:AKKUUPDATE|0}') = '1';
+end;

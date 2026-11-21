@@ -200,3 +200,7 @@ BatteryHub could not reopen. Please start it manually or repair the installation
 BatteryHub is up to date. = BatteryHub ist auf dem neuesten Stand.
 BatteryHub update = BatteryHub-Update
 BatteryHub will close briefly while the update is installed. = BatteryHub wird kurz geschlossen, während das Update installiert wird.
+
+# Akku-Monitor
+Akku-Monitor update = Akku-Monitor-Update
+You're up to date ({version}). = Akku-Monitor ist aktuell ({version}).

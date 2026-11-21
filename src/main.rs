@@ -7,6 +7,7 @@
 
 mod bluetooth;
 mod brands;
+mod update;
 mod devices;
 mod history;
 mod i18n;
@@ -35,9 +36,13 @@ use windows_sys::Win32::UI::WindowsAndMessaging::*;
 const WM_TRAY: u32 = WM_APP + 1;
 const WM_RESULTS: u32 = WM_APP + 2;
 const WM_WIDGET_CLICK: u32 = WM_APP + 3;
+const WM_UPDATE: u32 = WM_APP + 4;
 const TIMER_DEBOUNCE: usize = 1;
 const TIMER_WIDGET: usize = 2;
 const TIMER_ALERT_ICON: usize = 3;
+const TIMER_UPDATE: usize = 4;
+const UPDATE_FIRST_MS: u32 = 60 * 1000;
+const UPDATE_EVERY_MS: u32 = 6 * 60 * 60 * 1000;
 const POLL_SECONDS: [u32; 8] = [30, 60, 120, 300, 600, 900, 1800, 3600];
 const LOW_BATTERY: i32 = 15;
 const PLACEHOLDER_ID: u32 = 1;
@@ -57,6 +62,8 @@ const ID_STACKED: u32 = 110;
 const ID_SHOW_DISCONNECTED: u32 = 111;
 const ID_RECORD_HISTORY: u32 = 112;
 const ID_DIM_SLEEPING: u32 = 113;
+const ID_UPDATE: u32 = 200;
+const ID_AUTO_UPDATE: u32 = 201;
 const ID_MONITOR_ALL: u32 = 300;
 const ID_MONITOR_MAIN: u32 = 301;
 const ID_MONITOR_FIRST: u32 = 302;
@@ -122,6 +129,9 @@ struct App {
     order: Vec<String>,
     alert_overrides: BTreeMap<String, i32>,
     demo: bool,
+    auto_update: bool,
+    mutex: HANDLE,
+    update_busy: bool,
     worker: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -496,6 +506,68 @@ fn placeholder_icon() -> HICON {
         a.placeholder_icon = render_icon("-", -1, foreground(), foreground(), true);
     }
     a.placeholder_icon
+}
+
+/// Windows-Benachrichtigung über das (kurzzeitige) Hinweis-Symbol.
+fn notify(title: &str, message: &str) {
+    let a = app();
+    let icon = placeholder_icon();
+    tray_call(if a.alert_icon_added { NIM_MODIFY } else { NIM_ADD }, ALERT_ICON_ID, icon, APP_NAME, Some((title, message)));
+    a.alert_icon_added = true;
+    unsafe { SetTimer(a.hwnd, TIMER_ALERT_ICON, 60 * 1000, None) };
+}
+
+/// Update-Prüfung im Hintergrund starten (manuell = mit Rückmeldung).
+fn start_update_check(manual: bool) {
+    let a = app();
+    if a.update_busy {
+        return;
+    }
+    a.update_busy = true;
+    let hwnd = a.hwnd as isize;
+    std::thread::spawn(move || {
+        let r = update::check_and_download();
+        let ptr = Box::into_raw(Box::new((manual, r)));
+        if unsafe { PostMessageW(hwnd as HWND, WM_UPDATE, 0, ptr as LPARAM) } == 0 {
+            drop(unsafe { Box::from_raw(ptr) });
+        }
+    });
+}
+
+fn on_update_result(manual: bool, r: update::CheckResult) {
+    let a = app();
+    a.update_busy = false;
+    match r {
+        update::CheckResult::Ready(version, path) => {
+            if !manual && (!a.auto_update || !update::is_installed()) {
+                return;
+            }
+            // Einzelinstanz-Sperre freigeben, sonst meldet der Installer die App als „noch offen“.
+            if !a.mutex.is_null() {
+                unsafe {
+                    ReleaseMutex(a.mutex);
+                    CloseHandle(a.mutex);
+                }
+                a.mutex = std::ptr::null_mut();
+            }
+            if update::launch_installer(&path) {
+                // Der Installer ersetzt die Exe und startet die App danach neu.
+                unsafe { DestroyWindow(a.hwnd) };
+            } else {
+                notify(&t("Akku-Monitor update"), &tf("Update available: {version}...", &[("version", version)]));
+            }
+        }
+        update::CheckResult::UpToDate => {
+            if manual {
+                notify(APP_NAME, &tf("You're up to date ({version}).", &[("version", update::current_version().to_string())]));
+            }
+        }
+        update::CheckResult::Failed(_) => {
+            if manual {
+                notify(APP_NAME, &t("Could not check for updates. Check your Internet connection and try again."));
+            }
+        }
+    }
 }
 
 fn show_battery_alert(key: &str) {
@@ -956,6 +1028,11 @@ fn show_menu() {
         append(m, MF_STRING, ID_REFRESH as usize, &t("Refresh now"));
         append(m, MF_STRING | checked(autostart_enabled()), ID_AUTOSTART as usize, &t("Start with Windows"));
         separator(m);
+        append(m, MF_STRING | grayed(a.update_busy), ID_UPDATE as usize,
+               &if a.update_busy { t("Checking for updates...") } else { t("Check for updates...") });
+        append(m, MF_STRING | checked(a.auto_update && update::is_installed()) | grayed(!update::is_installed()), ID_AUTO_UPDATE as usize,
+               &t("Automatically check for updates"));
+        separator(m);
         append(m, MF_STRING, ID_EXIT as usize, &t("Exit"));
 
         let mut pt = POINT { x: 0, y: 0 };
@@ -1019,6 +1096,14 @@ fn show_menu() {
                 a.want_widget = cmd == ID_MODE_WIDGET;
                 save_bool("TaskbarWidget", a.want_widget);
                 reconcile();
+            }
+            ID_UPDATE => start_update_check(true),
+            ID_AUTO_UPDATE => {
+                a.auto_update = !a.auto_update;
+                save_bool("AutoUpdate", a.auto_update);
+                if a.auto_update {
+                    start_update_check(false);
+                }
             }
             ID_EXIT => {
                 DestroyWindow(a.hwnd);
@@ -1147,6 +1232,12 @@ unsafe extern "system" fn wnd_proc(h: HWND, msg: u32, wp: WPARAM, lp: LPARAM) ->
                 }
                 0
             }
+            WM_UPDATE => {
+                let b = Box::from_raw(lp as *mut (bool, update::CheckResult));
+                let (manual, r) = *b;
+                on_update_result(manual, r);
+                0
+            }
             WM_WIDGET_CLICK => {
                 show_menu();
                 0
@@ -1176,6 +1267,12 @@ unsafe extern "system" fn wnd_proc(h: HWND, msg: u32, wp: WPARAM, lp: LPARAM) ->
                 }
                 if wp == TIMER_WIDGET {
                     reconcile();
+                }
+                if wp == TIMER_UPDATE {
+                    SetTimer(h, TIMER_UPDATE, UPDATE_EVERY_MS, None);
+                    if a.auto_update && update::is_installed() {
+                        start_update_check(false);
+                    }
                 }
                 if wp == TIMER_ALERT_ICON {
                     KillTimer(h, TIMER_ALERT_ICON);
@@ -1252,6 +1349,16 @@ fn main() {
             }
             return;
         }
+        if args.iter().any(|a| a == "--check-update") {
+            // Test: prüfen und laden, aber nicht installieren.
+            let out = match update::check_and_download() {
+                update::CheckResult::UpToDate => format!("up to date ({})", update::current_version()),
+                update::CheckResult::Ready(v, p) => format!("ready: {v} -> {}", p.display()),
+                update::CheckResult::Failed(e) => format!("failed: {e}"),
+            };
+            let _ = std::fs::write(std::env::temp_dir().join("akku-monitor-update.txt"), out);
+            return;
+        }
         if args.iter().any(|a| a == "--list") {
             // Wie im Original: gefundene Geräte auflisten (hier in eine Datei, da ohne Konsole).
             let mut out = String::new();
@@ -1309,6 +1416,9 @@ fn main() {
             order: Vec::new(),
             alert_overrides: BTreeMap::new(),
             demo,
+            auto_update: true,
+            mutex,
+            update_busy: false,
             worker: None,
         });
         let a = app();
@@ -1360,6 +1470,8 @@ fn main() {
         reconcile();
         update_placeholder();
         SetTimer(a.hwnd, TIMER_WIDGET, 1000, None);
+        a.auto_update = load_bool("AutoUpdate", true);
+        SetTimer(a.hwnd, TIMER_UPDATE, UPDATE_FIRST_MS, None);
         let (hw, re, st) = (a.hwnd as isize, a.refresh_evt as isize, a.stop_evt as isize);
         a.worker = Some(std::thread::spawn(move || worker(hw, re, st, demo)));
 
@@ -1374,6 +1486,9 @@ fn main() {
         if !notify.is_null() {
             UnregisterDeviceNotification(notify);
         }
-        ReleaseMutex(mutex);
+        let m = app().mutex;
+        if !m.is_null() {
+            ReleaseMutex(m);
+        }
     }
 }

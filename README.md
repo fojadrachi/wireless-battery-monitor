@@ -27,6 +27,7 @@ Gelesen werden Akku in Prozent und – bei den Headsets – der Ladezustand (Gen
 - **Akku-Verlauf** (24 h / 7 / 30 Tage) mit Diagramm und vorsichtiger Restlaufzeit-Schätzung, nur lokal gespeichert
 - **19 Sprachen**, folgt der Windows-Sprache
 - Benachrichtigung bei schwachem Akku
+- **Automatische Updates:** prüft alle 6 Stunden auf ein neues Release, lädt es still herunter, kontrolliert die SHA-256-Prüfsumme und installiert es im Hintergrund (abschaltbar im Menü)
 
 ## Installation
 
@@ -79,6 +80,7 @@ Tested on real hardware:
 - **Battery history** (24 h / 7 / 30 days) with chart and a conservative time-to-empty estimate, stored locally only
 - **19 languages**, follows the Windows display language
 - Low-battery notification
+- **Automatic updates:** checks for a new release every 6 hours, downloads it silently, verifies its SHA-256 checksum and installs it in the background (can be turned off in the menu)
 
 ## Install
 
