@@ -15,6 +15,8 @@ Mit echter Hardware getestet:
 
 Gelesen werden Akku in Prozent und – bei den Headsets – der Ladezustand (Gen 4 zusätzlich Dock-Status und „Headset aus“).
 
+**Bluetooth:** Wie im Original werden alle Bluetooth-Geräte angezeigt, für die Windows einen Akkustand kennt (derselbe Wert wie unter Einstellungen › Bluetooth & Geräte). Das ASTRO A50 per Bluetooth liefert Windows keinen Akkuwert – es erscheint deshalb nur über die USB-Basisstation. `--list` zeigt solche Geräte mit dem Hinweis „Windows has no battery level for it“.
+
 ## Funktionen
 
 - **Taskleisten-Widget** neben der Uhr, auf allen Monitoren; weicht dem Windows-Widgets-Knopf aus, folgt hell/dunkel und DPI
@@ -63,6 +65,8 @@ Tested on real hardware:
 | **ASTRO A50 Gen 5** | USB base station | `046D:0B1C` |
 | **ASTRO A50 Gen 4** | USB base station | `9886:002C` |
 | **AJAZZ AJ179P** (mouse) | 2.4 GHz receiver | `249A:5C2F` |
+
+**Bluetooth:** like the original, every Bluetooth device Windows knows a battery level for is shown. The ASTRO A50 over Bluetooth exposes no level to Windows, so it appears via its USB base station only.
 
 ## Features
 

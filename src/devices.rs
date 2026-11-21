@@ -185,5 +185,8 @@ pub fn poll_all(api: &mut HidApi) -> Vec<DeviceStatus> {
             add(poll_ajazz(api, d));
         }
     }
+    // Wie im Original: Bluetooth-Geräte mit Windows-Akkustand anhängen.
+    let bt = crate::bluetooth::poll(&out);
+    out.extend(bt);
     out
 }

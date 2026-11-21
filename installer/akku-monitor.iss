@@ -1,5 +1,5 @@
 #define AppName "Akku-Monitor"
-#define AppVersion "2.0.0"
+#define AppVersion "2.1.0"
 #define AppExe "akku-monitor.exe"
 #define AppId "Fojadrachi.AkkuMonitor"
 

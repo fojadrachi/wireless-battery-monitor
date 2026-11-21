@@ -5,6 +5,7 @@
 #![allow(static_mut_refs)]
 #![allow(dead_code)]
 
+mod bluetooth;
 mod brands;
 mod devices;
 mod history;
@@ -1263,6 +1264,10 @@ fn main() {
                 out += &format!("{}  [{}]  {}{}{}   ({})\n", s.name, s.via, state,
                                 if s.detail.is_empty() { String::new() } else { format!(" ({})", s.detail) },
                                 if s.charging { ", charging" } else { "" }, s.key);
+            }
+            for n in bluetooth::without_battery() {
+                out += &format!("{n}  [Bluetooth]  connected, Windows has no battery level for it
+");
             }
             let path = std::env::temp_dir().join("akku-monitor-list.txt");
             let _ = std::fs::write(&path, out);
