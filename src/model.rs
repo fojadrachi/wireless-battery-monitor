@@ -27,6 +27,8 @@ pub struct DeviceStatus {
     pub level_text: String,
     pub charging: bool,
     pub full: bool,
+    /// Headset steht in der Ladestation / im Dock
+    pub docked: bool,
     pub asleep: bool,
     pub connected: bool,
     pub grace_sec: i32,
@@ -45,6 +47,7 @@ impl Default for DeviceStatus {
             level_text: String::new(),
             charging: false,
             full: false,
+            docked: false,
             asleep: false,
             connected: true,
             grace_sec: 0,

@@ -24,6 +24,7 @@ pub struct WidgetItem {
     pub text: String,
     pub charging: bool,
     pub full: bool,
+    pub docked: bool,
     pub dim: bool,
     pub low: bool,
     pub bluetooth: bool,
@@ -358,6 +359,7 @@ fn glyph(k: DeviceKind, bluetooth: bool) -> u16 {
 const BOLT: u16 = 0xE945;
 const CHECK: u16 = 0xE73E;
 const BATTERY_UNKNOWN: u16 = 0xE996;
+const DOCK: u16 = 0xEC59; // Basisstation
 
 /// Schrift erzeugen; fehlt die gewünschte, die Ersatzschrift nehmen.
 fn make_font(px_h: i32, weight: i32, face: &str, fallback: &str, fallback_px: i32) -> HFONT {
@@ -583,7 +585,7 @@ fn layout(bar_w: i32, bar_h: i32, width: &mut i32, height: &mut i32) -> Vec<Piec
     for (i, it) in s.items.iter().enumerate() {
         let a = if it.dim { 120 } else { 255 };
         let tc = if it.low { red } else { fg };
-        let mark = it.charging || it.full;
+        let mark = it.charging || it.full || it.docked;
         let gi = out.len();
         slots.push(Slot { icon: gi, label: gi + 1, bolt: if mark { gi as i32 + 2 } else { -1 } });
         let branded = it.accent != Accent::None;
@@ -611,7 +613,21 @@ fn layout(bar_w: i32, bar_h: i32, width: &mut i32, height: &mut i32) -> Vec<Piec
         }
         out.push(label);
         if mark {
-            out.push(piece(render_mask(&[if it.full { CHECK } else { BOLT }], bolt, light), if it.full { full } else { charge }, a, 0));
+            // ⚡ beim Laden, ✓ wenn voll, dazu das Dock-Symbol, wenn das Headset im Dock steht
+            let mut glyphs: Vec<u16> = Vec::new();
+            if it.full {
+                glyphs.push(CHECK);
+            } else if it.charging {
+                glyphs.push(BOLT);
+            }
+            if it.docked {
+                if !glyphs.is_empty() {
+                    glyphs.push(0x2009); // schmales Leerzeichen
+                }
+                glyphs.push(DOCK);
+            }
+            let color = if it.full { full } else if it.charging { charge } else { fg };
+            out.push(piece(render_mask(&glyphs, bolt, light), color, a, 0));
         }
         out.last_mut().unwrap().gap_after = if i + 1 < n_items { px(14) } else { 0 };
         if !it.label.is_empty() {

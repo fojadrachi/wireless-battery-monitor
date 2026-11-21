@@ -454,6 +454,9 @@ fn status_text(e: &TrayEntry) -> String {
     } else if s.charging {
         r += &format!(", {}", t("charging"));
     }
+    if s.docked {
+        r += &format!(", {}", t("in the dock"));
+    }
     if s.asleep {
         r += &format!(", {}", t("asleep"));
     }
@@ -687,6 +690,7 @@ fn update_widget() {
         }
         it.charging = !offline && !e.st.asleep && e.st.charging;
         it.full = !offline && (e.st.full || (e.st.charging && it.percent >= 100));
+        it.docked = !offline && e.st.docked;
         it.dim = should_dim(&e.st);
         it.low = !offline && !it.charging && it.percent >= 0 && it.percent <= LOW_BATTERY;
         it.bluetooth = e.st.via == "Bluetooth";
@@ -1370,7 +1374,8 @@ fn main() {
                 let state = if !s.connected { "off / not connected".to_string() } else if s.asleep { "asleep".into() } else if s.percent >= 0 { format!("{}%", s.percent) } else { "unknown".into() };
                 out += &format!("{}  [{}]  {}{}{}   ({})\n", s.name, s.via, state,
                                 if s.detail.is_empty() { String::new() } else { format!(" ({})", s.detail) },
-                                if s.charging { ", charging" } else { "" }, s.key);
+                                format!("{}{}", if s.full { ", fully charged" } else if s.charging { ", charging" } else { "" },
+                                        if s.docked { ", docked" } else { "" }), s.key);
             }
             for n in bluetooth::without_battery() {
                 out += &format!("{n}  [Bluetooth]  connected, Windows has no battery level for it

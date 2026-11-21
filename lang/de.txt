@@ -204,3 +204,4 @@ BatteryHub will close briefly while the update is installed. = BatteryHub wird k
 # Akku-Monitor
 Akku-Monitor update = Akku-Monitor-Update
 You're up to date ({version}). = Akku-Monitor ist aktuell ({version}).
+in the dock = im Dock

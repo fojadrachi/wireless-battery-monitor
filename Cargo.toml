@@ -1,6 +1,6 @@
 [package]
 name = "akku-monitor"
-version = "2.1.0"
+version = "2.2.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 description = "Akku-Stand von Funk-Headsets und -Mäusen in der Windows-Taskleiste (Rust-Port von BatteryHub)"

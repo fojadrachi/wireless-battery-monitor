@@ -1,6 +1,6 @@
 //! Akku-Abfrage der unterstützten Geräte über HID.
 //!
-//! - ASTRO A50 Gen 5 (046D:0B1C, FF32/0074): `02 0c 03 00 06 0c`, Antwort byte6 = %, byte8 = lädt
+//! - ASTRO A50 Gen 5 (046D:0B1C, FF32/0074): `02 0c 03 00 06 0c`, Antwort byte6 = %, byte8 = lädt (Dock oder Kabel)
 //!   (wie BatteryHub / HeadsetControl)
 //! - ASTRO A50 Gen 4 (9886:002C, FF32): Report-ID 2; `54` = Dock/Verbindung (bit0 Dock, bit1 Headset an),
 //!   `7C` = Akku (bit7 lädt, bit0-6 %) (wie BatteryHub / eh-fifty)
@@ -60,8 +60,12 @@ fn poll_a50_gen5(api: &HidApi, d: &DeviceInfo) -> Option<DeviceStatus> {
             && r[4] == 0x06 && (r[5] == 0 || r[5] == 0x0C) && r[6] <= 100
     })?;
     let mut s = base(format!("astro:{:04X}", d.product_id()), "ASTRO A50 Gen 5", DeviceKind::Headset, "USB base station", 0x046D);
+    // Byte 8: Headset lädt – im Dock ODER per Kabel. Beides meldet die Basisstation gleich (gemessen),
+    // deshalb gibt es bei der Gen 5 keinen eigenen Dock-Status. Byte 7 läuft in groben Schritten mit dem Akku mit.
     s.percent = r[6] as i32;
-    s.charging = r[8] != 0;
+    let on_power = r[8] != 0;
+    s.charging = on_power && s.percent < 100;
+    s.full = on_power && s.percent >= 100;
     Some(s)
 }
 
@@ -98,7 +102,8 @@ fn poll_a50_gen4(api: &HidApi, d: &DeviceInfo) -> Option<DeviceStatus> {
         if let Some((pct, chg, docked)) = CACHE.lock().ok()?.as_ref().and_then(|c| c.get(&pid).copied()) {
             s.percent = pct;
             s.charging = chg;
-            s.detail = if docked { "docked, Astro Command Center".into() } else { "Astro Command Center".into() };
+            s.docked = docked;
+            s.detail = "Astro Command Center".into();
         } else {
             s.detail = "Astro Command Center".into();
         }
@@ -121,9 +126,8 @@ fn poll_a50_gen4(api: &HidApi, d: &DeviceInfo) -> Option<DeviceStatus> {
             s.connected = true;
             s.percent = pct;
             s.charging = bat & 0x80 != 0 || (docked && pct < 100);
-            if docked {
-                s.detail = "docked".into();
-            }
+            s.docked = docked;
+            s.full = docked && pct >= 100;
             if let Ok(mut c) = CACHE.lock() {
                 c.get_or_insert_with(HashMap::new).insert(pid, (pct, s.charging, docked));
             }
