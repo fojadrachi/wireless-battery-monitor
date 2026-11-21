@@ -12,6 +12,7 @@ Mit echter Hardware getestet:
 | **ASTRO A50 Gen 5** | USB-Basisstation | `046D:0B1C` |
 | **ASTRO A50 Gen 4** | USB-Basisstation | `9886:002C` |
 | **AJAZZ AJ179P** (Maus) | 2,4-GHz-Empfänger | `249A:5C2F` |
+| **JBL TUNE BEAM** (Kopfhörer) | Bluetooth | – |
 
 Gelesen werden Akku in Prozent und – bei den Headsets – der Ladezustand (Gen 4 zusätzlich Dock-Status und „Headset aus“).
 
@@ -65,6 +66,7 @@ Tested on real hardware:
 | **ASTRO A50 Gen 5** | USB base station | `046D:0B1C` |
 | **ASTRO A50 Gen 4** | USB base station | `9886:002C` |
 | **AJAZZ AJ179P** (mouse) | 2.4 GHz receiver | `249A:5C2F` |
+| **JBL TUNE BEAM** (headphones) | Bluetooth | – |
 
 **Bluetooth:** like the original, every Bluetooth device Windows knows a battery level for is shown. The ASTRO A50 over Bluetooth exposes no level to Windows, so it appears via its USB base station only.
 
